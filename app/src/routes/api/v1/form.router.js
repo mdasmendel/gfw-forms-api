@@ -3,6 +3,7 @@ const logger = require('logger');
 const mailService = require('services/mailService');
 const userService = require('services/userService');
 const googleSheetsService = require('services/googleSheetsService');
+const FormValidator = require('validators/form.validator');
 const config = require('config');
 
 const router = new Router({
@@ -35,7 +36,7 @@ class FormRouter {
         this.body = '';
     }
 
-    static* addFeedback() {
+    static* contactUs() {
         logger.info('Sending mail');
         const { topic, tool } = this.request.body;
         const mailParams = config.get('contactEmail');
@@ -84,10 +85,9 @@ class FormRouter {
         this.body = '';
     }
 
-
 }
 
 router.post('/contribution-data', FormRouter.addContribution);
-router.post('/contact-us', FormRouter.addFeedback);
+router.post('/contact-us', FormValidator.contactUs, FormRouter.contactUs);
 
 module.exports = router;

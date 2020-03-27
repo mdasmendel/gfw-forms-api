@@ -37,24 +37,18 @@ class GoogleSheetsService {
                     return;
                 }
             }
-            if (user.signup === 'true') {
+            logger.debug(`[GoogleSheetsService - updateSheet] Done looking for existing users, entering sign up part.`);
+            if (user.signup === 'true' || user.signup === true) {
                 logger.info('User does not exist. Adding....');
-                return new Promise(((resolve, reject) => {
-                    const newRow = {
-                        agreed_to_test: 'yes',
-                        'Date First Added': this.getDate(),
-                        Email: user.email,
-                        Source: 'GFW Feedback Form'
-                    };
-                    this.doc.addRow(this.creds.target_sheet_index, newRow, (err, rowResult) => {
-                        if (err) {
-                            return reject(err);
-                        }
-                        logger.info('Added row in spreadsheet');
-                        resolve(rowResult);
-                    });
-                }));
+                const newRow = {
+                    agreed_to_test: 'yes',
+                    'Date First Added': this.getDate(),
+                    Email: user.email,
+                    Source: 'GFW Feedback Form'
+                };
+                yield this.addRow(newRow, this.creds.target_sheet_index);
             }
+            logger.debug(`[GoogleSheetsService - updateSheet] Finished Google Sheets.`);
         } catch (err) {
             logger.error(err);
         }
@@ -86,6 +80,25 @@ class GoogleSheetsService {
         }
     }
 
+    * addRow(row, index) {
+        try {
+            logger.debug('Adding new row...');
+            return new Promise(((resolve, reject) => {
+                this.doc.addRow(index, row, (err, rowResult) => {
+                    logger.debug(`[GoogleSheetsService - updateSheet] Attempt to add row finished.`);
+                    if (err) {
+                        logger.warn(`[GoogleSheetsService - updateSheet] Could not add row to spreadsheet: ${err.message}`);
+                        return reject(err);
+                    }
+                    logger.debug(`[GoogleSheetsService - updateSheet] Successfully added row to spreadsheet.`);
+                    resolve(rowResult);
+                });
+            }));
+        } catch (err) {
+            logger.debug(err);
+        }
+    }
+
     * checkRows() {
         try {
             logger.debug('checking rows....');
@@ -97,6 +110,7 @@ class GoogleSheetsService {
                     if (err) {
                         return reject(err);
                     }
+                    logger.debug(`[GoogleSheetsService - checkRows] Found ${result.length} results.`);
                     resolve(result);
                 });
             }));

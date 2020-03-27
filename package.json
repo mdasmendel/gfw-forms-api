@@ -54,6 +54,7 @@
     "koa-simple-healthcheck": "^0.0.1",
     "koa-validate": "^1.0.7",
     "mongoose": "^4.13.13",
+    "redis": "^3.0.2",
     "sleep": "^6.1.0",
     "uuid": "^3.0.1",
     "vizz.async-client": "^1.0.0"
