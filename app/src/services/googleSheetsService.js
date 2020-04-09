@@ -1,7 +1,7 @@
-/* eslint-disable consistent-return,require-yield */
+/* eslint-disable consistent-return,require-await */
 const config = require('config');
 const logger = require('logger');
-const GoogleSpreadsheet = require('google-spreadsheet');
+const { GoogleSpreadsheet } = require('google-spreadsheet');
 
 class GoogleSheetsService {
 
@@ -10,51 +10,43 @@ class GoogleSheetsService {
         this.doc = new GoogleSpreadsheet(this.creds.target_sheet_id);
     }
 
-    * authSheets() {
-        return new Promise(((resolve, reject) => {
-            const creds = {
-                private_key: this.creds.private_key.replace(/\\n/g, '\n'),
-                client_email: this.creds.client_email
-            };
-            this.doc.useServiceAccountAuth(creds, (err, result) => {
-                if (err) {
-                    return reject(err);
-                }
-                resolve(result);
-            });
-        }));
+    async authSheets() {
+        const creds = {
+            private_key: this.creds.private_key.replace(/\\n/g, '\n'),
+            client_email: this.creds.client_email
+        };
+
+        await this.doc.useServiceAccountAuth(creds);
+        await this.doc.loadInfo();
+        this.sheet = this.doc.sheetsByIndex[this.creds.target_sheet_index];
     }
 
-    * updateSheet(user) {
-        try {
-            yield this.authSheets(this.creds);
-            const result = yield this.checkRows();
-            for (let i = 0; i < result.length; i++) {
-                // eslint-disable-next-line no-underscore-dangle
-                if (result[i]._value === user.email) {
-                    logger.info('User already exists. Updating....');
-                    yield this.updateCells(result[i], user);
-                    return;
-                }
+    async updateSheet(user) {
+        await this.authSheets(this.creds);
+        const result = await this.checkRows();
+        for (let i = 0; i < result.length; i++) {
+            // eslint-disable-next-line no-underscore-dangle
+            if (result[i]._value === user.email) {
+                logger.info('User already exists. Updating....');
+                await this.updateCells(result[i], user);
+                return;
             }
-            logger.debug(`[GoogleSheetsService - updateSheet] Done looking for existing users, entering sign up part.`);
-            if (user.signup === 'true' || user.signup === true) {
-                logger.info('User does not exist. Adding....');
-                const newRow = {
-                    agreed_to_test: 'yes',
-                    'Date First Added': this.getDate(),
-                    Email: user.email,
-                    Source: 'GFW Feedback Form'
-                };
-                yield this.addRow(newRow, this.creds.target_sheet_index);
-            }
-            logger.debug(`[GoogleSheetsService - updateSheet] Finished Google Sheets.`);
-        } catch (err) {
-            logger.error(err);
         }
+        logger.debug(`[GoogleSheetsService - updateSheet] Done looking for existing users, entering sign up part.`);
+        if (user.signup === 'true' || user.signup === true) {
+            logger.info('User does not exist. Adding....');
+            const newRow = {
+                agreed_to_test: 'yes',
+                'Date First Added': this.getDate(),
+                Email: user.email,
+                Source: 'GFW Feedback Form'
+            };
+            await this.addRow(newRow, this.creds.target_sheet_index);
+        }
+        logger.debug(`[GoogleSheetsService - updateSheet] Finished Google Sheets.`);
     }
 
-    * updateCells(row, user) {
+    async updateCells(row, user) {
         try {
             logger.info('Getting user....');
             return new Promise(((resolve, reject) => {
@@ -80,7 +72,7 @@ class GoogleSheetsService {
         }
     }
 
-    * addRow(row, index) {
+    async addRow(row, index) {
         try {
             logger.debug('Adding new row...');
             return new Promise(((resolve, reject) => {
@@ -99,24 +91,12 @@ class GoogleSheetsService {
         }
     }
 
-    * checkRows() {
-        try {
-            logger.debug('checking rows....');
-            return new Promise(((resolve, reject) => {
-                this.doc.getCells(this.creds.target_sheet_index, {
-                    'min-col': 5,
-                    'max-col': 5
-                }, (err, result) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    logger.debug(`[GoogleSheetsService - checkRows] Found ${result.length} results.`);
-                    resolve(result);
-                });
-            }));
-        } catch (err) {
-            logger.debug(err);
-        }
+    async checkRows() {
+        logger.debug('checking rows....');
+        return this.sheet.loadCells({
+            'min-col': 5,
+            'max-col': 5
+        });
     }
 
     // eslint-disable-next-line class-methods-use-this
